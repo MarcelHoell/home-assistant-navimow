@@ -7,7 +7,7 @@ from .const import DOMAIN
 from .api import NavimowApiClient
 from .coordinator import NavimowDataUpdateCoordinator
 
-PLATFORMS = ["lawn_mower", "sensor", "binary_sensor", "device_tracker"]
+PLATFORMS = ["lawn_mower", "sensor", "binary_sensor"]
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up integration from config entry."""
@@ -20,10 +20,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     devices = await api_client.async_get_devices()
     coordinator = NavimowDataUpdateCoordinator(hass, api_client, entry, devices)
     await coordinator.async_config_entry_first_refresh()
-
-    mqtt_info = await api_client.async_get_mqtt_info()
-    if mqtt_info:
-        await coordinator.async_setup_mqtt(mqtt_info)
 
     hass.data[DOMAIN][entry.entry_id] = {
         "coordinator": coordinator,

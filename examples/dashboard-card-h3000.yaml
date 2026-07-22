@@ -71,12 +71,6 @@ cards:
         entity: update.navimow_unofficial_update
         name: Integration
 
-  - type: map
-    entities:
-      - entity: device_tracker.navimow_h3000_position
-    hours_to_show: 2
-    theme_mode: auto
-    aspect_ratio: "16:9"
 
   - type: entities
     title: Details
@@ -88,8 +82,6 @@ cards:
         name: Battery
       - entity: binary_sensor.navimow_h3000_connectivity
         name: Connectivity
-      - entity: device_tracker.navimow_h3000_position
-        name: Position
       - entity: update.navimow_unofficial_update
         name: Integration update
 

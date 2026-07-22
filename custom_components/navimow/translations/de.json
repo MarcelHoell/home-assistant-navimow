@@ -41,11 +41,6 @@
       "cloud_connection": {
         "name": "Cloud-Verbindung"
       }
-    },
-    "device_tracker": {
-      "position": {
-        "name": "Position"
-      }
     }
   }
 }

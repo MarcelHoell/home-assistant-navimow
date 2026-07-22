@@ -15,7 +15,6 @@
 #   sensor.navimow_battery                battery %
 #   sensor.navimow_error                  error code, "none" when healthy
 #   binary_sensor.navimow_connectivity    online/offline
-#   device_tracker.navimow_position       GPS lat/lng
 #
 # Core cards only, no HACS frontend dependencies.
 
@@ -57,14 +56,6 @@ cards:
         entity: sensor.navimow_error
         name: Error
 
-  # Live position. `hours_to_show: 0` shows only the current point;
-  # raise it to draw the mowing path from recorder history.
-  - type: map
-    entities:
-      - entity: device_tracker.navimow_position
-    hours_to_show: 2
-    theme_mode: auto
-    aspect_ratio: "16:9"
 
   # Raw values, handy while debugging the integration
   - type: entities
@@ -79,8 +70,6 @@ cards:
         name: Error
       - entity: binary_sensor.navimow_connectivity
         name: Connectivity
-      - entity: device_tracker.navimow_position
-        name: Position
 
   # Battery history
   - type: history-graph

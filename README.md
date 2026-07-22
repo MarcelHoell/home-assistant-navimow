@@ -26,7 +26,7 @@ built on the official Segway OpenAPI.
 
 - Native `lawn_mower` entity — start, pause, return to dock, live activity
 - Battery level, error state, connectivity and GPS position
-- **Real-time push** via MQTT over WebSockets, plus a 30 s REST poll as a safety net
+- Status polled every 30 s over REST
 - OAuth2 login through the official Navimow flow, with automatic token refresh
 - Fully configured from the Home Assistant UI, no YAML required
 - Localised in English, German and Italian — Home Assistant picks the language
@@ -71,7 +71,8 @@ directory and restart.
 ## 📱 Entities
 
 One set per mower. `{slug}` is derived from the device name the Segway API
-reports, e.g. a *Navimow H3000* becomes `navimow_h3000`.
+reports, e.g. a *Navimow H3000* becomes `navimow_h3000`. The status payload has
+exactly four fields, so this is everything the API offers.
 
 | Entity | Description |
 | --- | --- |
@@ -79,7 +80,6 @@ reports, e.g. a *Navimow H3000* becomes `navimow_h3000`.
 | `sensor.{slug}_battery` | Battery charge in %, device class `battery` |
 | `sensor.{slug}_error` | Current error code, `none` when healthy |
 | `binary_sensor.{slug}_connectivity` | *Cloud connection* — `on` = the Segway API answered the last poll. **Not** whether the mower is switched on, see below |
-| `device_tracker.{slug}_position` | GPS position, source type `gps` |
 
 Not sure about your exact ids? **Developer Tools → Template**:
 
@@ -108,13 +108,16 @@ contents into **Add card → Manual**.
 ```
 OAuth2 ──► REST /authList          device list
        ──► REST /getVehicleStatus  status, polled every 30 s
-       ──► MQTT over WebSockets    push updates, /downlink/vehicle/{id}/…
+       ──► REST /sendCommands      start / pause / dock
 ```
 
-`coordinator.py` owns both channels. MQTT credentials are bound to the OAuth
-token, so on disconnect the coordinator refreshes the token, refetches the
-credentials and reconnects. Tokens are also refreshed proactively before
-expiry and reactively on a `TOKEN_EXPIRED` response.
+`coordinator.py` owns the poll and the tokens, which are refreshed proactively
+before expiry and reactively on a `TOKEN_EXPIRED` response.
+
+Earlier versions also opened an MQTT-over-WebSockets connection for push
+updates. It connected and subscribed correctly but never delivered a single
+message in over four hours of logging, mowing included, so it was removed in
+0.8.0 along with the GPS device tracker it was the only possible source for.
 
 ## 🐛 Troubleshooting
 
@@ -146,8 +149,8 @@ history are kept. Removing the integration is not necessary.
 the problem, then disable it again — Home Assistant hands you the captured log
 as a file.
 
-This records the raw `authList` / `getVehicleStatus` responses and every MQTT
-payload. **The file is not redacted**: search it for `access_token` and remove
+This records the raw `authList`, `getVehicleStatus` and `sendCommands`
+responses. **The file is not redacted**: search it for `access_token` and remove
 those lines before sharing.
 
 Permanent alternative, if you would rather have it in `configuration.yaml`:

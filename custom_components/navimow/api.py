@@ -94,16 +94,3 @@ class NavimowApiClient:
             res = await response.json()
             _LOGGER.debug("sendCommands %s raw response: %s", command, res)
             return res or {}
-
-    async def async_get_mqtt_info(self) -> dict:
-        """Fetch MQTT broker credentials."""
-        url = f"{BASE_URL.replace('/smarthome', '')}/mqtt/userInfo/get/v2"
-        try:
-            async with self._session.get(url, headers=self._get_headers()) as response:
-                res = await response.json()
-                if res.get("code") == 1:
-                    return res.get("data", {})
-                return {}
-        except Exception as e:
-            _LOGGER.error("Errore recupero info MQTT: %s", e)
-            return {}

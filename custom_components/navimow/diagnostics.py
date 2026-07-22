@@ -18,7 +18,6 @@ async def async_get_config_entry_diagnostics(hass, entry) -> dict:
             "devices": stored["devices"],
             # Listed, not keyed by device id — the key would leak the serial
             "coordinator_data": list((coordinator.data or {}).values()),
-            "mqtt_connected": coordinator._mqtt_client is not None,
         },
         TO_REDACT,
     )
