@@ -23,6 +23,23 @@ AUTH_BASE_URL = "https://navimow-h5-fra.willand.com/smartHome/login"
 OFFLINE_RAW_STATES = {"offline", "isidel"}
 
 
+def pick_pending_flow(pending: dict, state: str | None) -> tuple[str | None, bool]:
+    """Pick the config flow an OAuth callback belongs to, consuming it.
+
+    `pending` maps our state token to a flow id. Returns (flow_id, used_fallback).
+
+    The fallback exists because it is unverified whether Segway echoes the
+    state parameter back. It only triggers when exactly one flow is waiting,
+    which is the normal case for a person clicking through setup, and never
+    when nothing is pending — so the endpoint stays inert outside of setup.
+    """
+    if state is not None:
+        return pending.pop(state, None), False
+    if len(pending) == 1:
+        return pending.popitem()[1], True
+    return None, False
+
+
 def is_online(device_status: dict | None) -> bool:
     """Whether the mower is powered on. Empty status means it dropped out of the payload."""
     if not device_status:

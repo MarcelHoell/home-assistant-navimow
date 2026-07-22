@@ -9,7 +9,18 @@ from pathlib import Path
 COMPONENT = Path(__file__).resolve().parents[1] / "custom_components" / "navimow"
 sys.path.insert(0, str(COMPONENT))
 
-from const import is_online  # noqa: E402
+from const import is_online, pick_pending_flow  # noqa: E402
+
+# --- OAuth callback: which flow may an unauthenticated request drive? ------
+assert pick_pending_flow({"tok": "flow1"}, "tok") == ("flow1", False)
+assert pick_pending_flow({"tok": "flow1"}, "wrong") == (None, False)  # forged state
+assert pick_pending_flow({}, None) == (None, False)  # nothing pending: inert
+assert pick_pending_flow({"a": "1", "b": "2"}, None) == (None, False)  # ambiguous
+assert pick_pending_flow({"tok": "flow1"}, None) == ("flow1", True)  # documented fallback
+
+_pending = {"tok": "flow1"}
+assert pick_pending_flow(_pending, "tok") == ("flow1", False)
+assert pick_pending_flow(_pending, "tok") == (None, False), "a code must be usable only once"
 
 # --- reachability ----------------------------------------------------------
 assert is_online({"vehicleState": "isDocked"}) is True

@@ -28,6 +28,12 @@ class NavimowBattery(NavimowEntity, SensorEntity):
         cap = self.status.get("capacityRemaining", [{}])
         return cap[0].get("rawValue") if cap else None
 
+    @property
+    def extra_state_attributes(self):
+        """Segway's own wording for the charge level, e.g. "FULL"."""
+        descriptive = self.status.get("descriptiveCapacityRemaining")
+        return {"descriptive_capacity": descriptive} if descriptive else None
+
 
 class NavimowErrorSensor(NavimowEntity, SensorEntity):
     _attr_translation_key = "error"

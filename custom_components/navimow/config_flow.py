@@ -1,4 +1,5 @@
 """Config flow for Segway Navimow integration."""
+import secrets
 import urllib.parse
 import logging
 from aiohttp import web
@@ -10,32 +11,60 @@ from homeassistant.components.http import HomeAssistantView
 from homeassistant.helpers.network import get_url
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .const import DOMAIN, CLIENT_ID, CLIENT_SECRET, TOKEN_URL, AUTH_BASE_URL
+from .const import DOMAIN, CLIENT_ID, CLIENT_SECRET, TOKEN_URL, AUTH_BASE_URL, pick_pending_flow
 
 _LOGGER = logging.getLogger(__name__)
+
+# hass.data[DOMAIN] keys. Everything else in there is keyed by config entry id.
+PENDING_FLOWS = "pending_oauth_flows"  # {state token: flow id}
+VIEW_REGISTERED = "callback_view_registered"
+
+
+def _async_register_callback_view(hass: HomeAssistant) -> None:
+    """Register the redirect endpoint once, not on every setup attempt."""
+    data = hass.data.setdefault(DOMAIN, {})
+    if not data.get(VIEW_REGISTERED):
+        hass.http.register_view(NavimowCallbackView(hass))
+        data[VIEW_REGISTERED] = True
 
 
 class NavimowCallbackView(HomeAssistantView):
     """HTTP endpoint in Home Assistant to handle Navimow OAuth redirect."""
-    
+
     url = "/api/navimow/callback"
     name = "api:navimow:callback"
     requires_auth = False
 
-    def __init__(self, hass: HomeAssistant, flow_id: str):
-        """Initialize the view with the config flow ID."""
+    def __init__(self, hass: HomeAssistant):
+        """Initialize the view."""
         self.hass = hass
-        self.flow_id = flow_id
 
     async def get(self, request: web.Request) -> web.Response:
-        """Handle GET request from Navimow OAuth redirect."""
+        """Handle GET request from Navimow OAuth redirect.
+
+        This endpoint is unauthenticated, so it only ever acts on a flow that
+        is actually waiting for a code, and consumes it on first use.
+        """
         code = request.query.get("code")
-        
         if not code:
             return web.Response(text="Error: 'code' parameter not found in redirect URL.", status=400)
 
+        pending = self.hass.data.setdefault(DOMAIN, {}).setdefault(PENDING_FLOWS, {})
+        flow_id, used_fallback = pick_pending_flow(pending, request.query.get("state"))
+
+        if used_fallback:
+            # Watch for this: if it never appears, the fallback can be deleted
+            _LOGGER.warning(
+                "Navimow did not echo the OAuth state parameter, accepting the "
+                "single pending flow instead"
+            )
+
+        if not flow_id:
+            _LOGGER.warning("Rejected OAuth callback: no matching pending flow")
+            return web.Response(text="Error: no Navimow setup is waiting for this response.", status=400)
+
         await self.hass.config_entries.flow.async_configure(
-            flow_id=self.flow_id,
+            flow_id=flow_id,
             user_input={"code": code}
         )
 
@@ -61,6 +90,7 @@ class NavimowConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self.redirect_uri = None
         self.account_name = None
         self._reauth_entry = None
+        self._state = None
 
     async def async_step_reauth(self, entry_data):
         """Tokens died: re-run the OAuth link instead of losing the entry."""
@@ -113,16 +143,20 @@ class NavimowConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             ha_url = get_url(self.hass)
 
         self.redirect_uri = f"{ha_url}/api/navimow/callback"
-        
+
+        self._state = secrets.token_urlsafe(16)
+        self.hass.data.setdefault(DOMAIN, {}).setdefault(PENDING_FLOWS, {})[self._state] = self.flow_id
+
         params = {
             "channel": "homeassistant",
             "client_id": CLIENT_ID,
             "response_type": "code",
-            "redirect_uri": self.redirect_uri
+            "redirect_uri": self.redirect_uri,
+            "state": self._state,
         }
         auth_url = f"{AUTH_BASE_URL}?{urllib.parse.urlencode(params)}"
 
-        self.hass.http.register_view(NavimowCallbackView(self.hass, self.flow_id))
+        _async_register_callback_view(self.hass)
 
         return self.async_show_form(
             step_id="auth", 
@@ -131,6 +165,9 @@ class NavimowConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_exchange(self, code: str):
         """Third step: Exchange authorization code for access token."""
+        # The code is in hand, so this flow no longer accepts callbacks
+        self.hass.data.setdefault(DOMAIN, {}).setdefault(PENDING_FLOWS, {}).pop(self._state, None)
+
         session = async_get_clientsession(self.hass)
         
         payload = {

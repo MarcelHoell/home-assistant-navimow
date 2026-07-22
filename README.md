@@ -77,7 +77,7 @@ exactly four fields, so this is everything the API offers.
 | Entity | Description |
 | --- | --- |
 | `lawn_mower.{slug}` | Activity + commands. States: `mowing`, `paused`, `docked`, `returning`, `error`. Becomes `unavailable` when the mower is switched off. |
-| `sensor.{slug}_battery` | Battery charge in %, device class `battery` |
+| `sensor.{slug}_battery` | Battery charge in %, device class `battery`. Attribute `descriptive_capacity` carries Segway's own wording, e.g. `FULL` |
 | `sensor.{slug}_error` | Current error code, `none` when healthy |
 | `binary_sensor.{slug}_connectivity` | *Cloud connection* — `on` = the Segway API answered the last poll. **Not** whether the mower is switched on, see below |
 
