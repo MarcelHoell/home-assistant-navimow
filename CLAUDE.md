@@ -30,7 +30,10 @@ Everything lives in `custom_components/navimow/`:
 - **Raw vehicle states are Segway's, with typos** (`isIdel`). Mapped in `RAW_STATE_TO_CANONICAL` in `lawn_mower.py`; `sensor.py` has its own `_ERROR_RAW_STATES` set. Adding a state means touching both.
 - **The coordinator owns the MQTT client's lifetime.** `async_shutdown()` stops it on unload; without that a reload leaves an orphan client reconnecting forever into dead data.
 - **A dead refresh token raises `ConfigEntryAuthFailed`**, which opens the reauth flow. Never tell the user to remove and re-add the integration.
-- **The API never reports a powered-off mower.** No `online` flag, no timestamp, and a switched-off mower keeps being served as `isDocked` (measured: 127 identical polls over an hour). MQTT is silent while docked. `binary_sensor` therefore reports cloud reachability via `last_update_success`, not mower state — do not "fix" it back into a mower-online sensor.
+- **`isIdel` means the mower is switched off**, not idle. Measured against a live account: it appears within one or two polls of powering off and never once occurred while the mower was demonstrably on. `OFFLINE_RAW_STATES` in `const.py` and `RAW_STATE_TO_CANONICAL` in `lawn_mower.py` must agree — `tests/test_navimow.py` asserts it. The correctly spelled `isIdle` has never been observed and is deliberately treated as a normal idle state.
+- **Station power loss is invisible.** Pulling mains from the charging station produces no state change at all.
+- **The payload has exactly four fields**: `id`, `capacityRemaining`, `vehicleState`, `descriptiveCapacityRemaining`. No position, no error code, no timestamp — `device_tracker` and the error sensor depend entirely on MQTT, which has never delivered a single message in over four hours of logs, mowing included.
+- **`binary_sensor` reports cloud reachability** via `last_update_success`, not mower state. Do not "fix" it back into a mower-online sensor.
 - **Offline is not docked.** `is_online()` in `const.py` is the single reachability check; the mower entity reports `unavailable` and an unmapped `vehicleState` yields `None`, never a fake `DOCKED`.
 - Battery lives at `capacityRemaining[0].rawValue`; position at `position.lat` / `position.lng`.
 - Comments and some log strings are mixed Italian/English. Write new ones in English.

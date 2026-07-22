@@ -9,17 +9,24 @@ TOKEN_URL = "https://navimow-fra.ninebot.com/openapi/oauth/getAccessToken"
 AUTH_BASE_URL = "https://navimow-h5-fra.willand.com/smartHome/login"
 
 
-def is_online(device_status: dict | None) -> bool:
-    """Whether the mower is reachable. Empty status means the API told us nothing.
+# Raw vehicleState values that mean "the mower is not powered on".
+#
+# "isIdel" is Segway's typo for idle, but measured against a live account it is
+# what the API reports for a switched-off mower, appearing within one or two
+# 30s polls. It was never once observed while the mower was demonstrably on
+# (~4h of logs across three sessions). The correctly spelled "isIdle" has never
+# been seen at all and is deliberately not listed — if Segway ever fixes the
+# typo, this set needs revisiting.
+#
+# Cutting power to the charging station is invisible to the API and does not
+# show up here.
+OFFLINE_RAW_STATES = {"offline", "isidel"}
 
-    Best effort only: getVehicleStatus carries neither an "online" flag nor a
-    timestamp, and a powered-off mower keeps being served with its last known
-    state (observed: vehicleState "isIdel", battery 100%). The checks below are
-    defensive in case Segway ever sends those fields; they cannot detect a
-    mower that was simply switched off.
-    """
+
+def is_online(device_status: dict | None) -> bool:
+    """Whether the mower is powered on. Empty status means it dropped out of the payload."""
     if not device_status:
         return False
-    if not device_status.get("online", True):
+    if not device_status.get("online", True):  # never seen in the wild, kept as a guard
         return False
-    return str(device_status.get("vehicleState", "")).lower() != "offline"
+    return str(device_status.get("vehicleState", "")).lower() not in OFFLINE_RAW_STATES

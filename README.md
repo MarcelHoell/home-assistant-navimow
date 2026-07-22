@@ -75,7 +75,7 @@ reports, e.g. a *Navimow H3000* becomes `navimow_h3000`.
 
 | Entity | Description |
 | --- | --- |
-| `lawn_mower.{slug}` | Activity + commands. States: `mowing`, `paused`, `docked`, `returning`, `error`. Becomes `unavailable` when the mower is offline. |
+| `lawn_mower.{slug}` | Activity + commands. States: `mowing`, `paused`, `docked`, `returning`, `error`. Becomes `unavailable` when the mower is switched off. |
 | `sensor.{slug}_battery` | Battery charge in %, device class `battery` |
 | `sensor.{slug}_error` | Current error code, `none` when healthy |
 | `binary_sensor.{slug}_connectivity` | *Cloud connection* — `on` = the Segway API answered the last poll. **Not** whether the mower is switched on, see below |
@@ -125,12 +125,13 @@ the browser cache.
 dropped out of the payload. The *Cloud connection* sensor stays available and
 tells you which.
 
-**The mower shows as docked although it is switched off** — the API cannot tell
-you otherwise. `getVehicleStatus` keeps serving the last known state, verified
-over an hour of polling a powered-off mower. There is no `online` flag and no
-timestamp in the payload, and MQTT sends nothing while the mower sits in its
-dock. The *Cloud connection* sensor therefore reports the API's reachability,
-not the mower's.
+**Mower entities are `unavailable`** — the mower is switched off. The API
+reports `isIdel` for a powered-off mower, usually within a minute. Cutting power
+to the charging station is *not* detectable this way: the API keeps reporting
+the mower's own state.
+
+The *Cloud connection* sensor stays available throughout — it tracks whether the
+Segway API answers, not what the mower does.
 
 **Commands do nothing** — test with Developer Tools → Actions →
 `lawn_mower.dock`. If that fails too, it is the API, not the dashboard.

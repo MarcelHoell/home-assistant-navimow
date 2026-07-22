@@ -14,8 +14,10 @@ from const import is_online  # noqa: E402
 # --- reachability ----------------------------------------------------------
 assert is_online({"vehicleState": "isDocked"}) is True
 assert is_online({"vehicleState": "isRunning", "online": True}) is True
+assert is_online({"vehicleState": "isPaused"}) is True
 assert is_online({"vehicleState": "offline"}) is False
 assert is_online({"vehicleState": "Offline"}) is False  # Segway sends both cases
+assert is_online({"vehicleState": "isIdel"}) is False  # measured: mower switched off
 assert is_online({"vehicleState": "isDocked", "online": False}) is False
 assert is_online({}) is False  # device missing from the API payload
 assert is_online(None) is False
@@ -40,12 +42,20 @@ def _dict_literal(name: str) -> dict:
 raw_to_canonical = _dict_literal("RAW_STATE_TO_CANONICAL")
 canonical_to_activity = _dict_literal("CANONICAL_TO_ACTIVITY")
 
+# "offline" has no activity on purpose, the entity reports unavailable instead
 unmapped = {
     canonical
     for canonical in raw_to_canonical.values()
-    if canonical != "unknown" and canonical not in canonical_to_activity
+    if canonical not in ("unknown", "offline") and canonical not in canonical_to_activity
 }
 assert not unmapped, f"canonical states without a LawnMowerActivity: {sorted(unmapped)}"
+
+# The two files must agree on which raw states mean "powered off"
+for raw, canonical in raw_to_canonical.items():
+    assert is_online({"vehicleState": raw}) == (canonical != "offline"), (
+        f"{raw!r} is {canonical!r} in lawn_mower.py but "
+        f"is_online() says {is_online({'vehicleState': raw})}"
+    )
 
 # Every error-ish raw state the sensor knows must also be an error for the mower
 error_states = next(

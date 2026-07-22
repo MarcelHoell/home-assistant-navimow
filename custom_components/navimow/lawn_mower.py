@@ -10,7 +10,7 @@ _LOGGER = logging.getLogger(__name__)
 
 RAW_STATE_TO_CANONICAL = {
     "isDocked": "docked",
-    "isIdel": "idle",
+    "isIdel": "offline",  # see OFFLINE_RAW_STATES in const.py: this is a powered-off mower
     "isIdle": "idle",
     "isMapping": "mowing",
     "isRunning": "mowing",
@@ -22,8 +22,8 @@ RAW_STATE_TO_CANONICAL = {
     "inSoftwareUpdate": "paused",
     "Self-Checking": "idle",
     "Self-checking": "idle",
-    "Offline": "unknown",
-    "offline": "unknown",
+    "Offline": "offline",
+    "offline": "offline",
 }
 
 CANONICAL_TO_ACTIVITY = {
@@ -34,6 +34,7 @@ CANONICAL_TO_ACTIVITY = {
     "docked": LawnMowerActivity.DOCKED,
     # ponytail: no IDLE member in LawnMowerActivity, DOCKED is the closest
     "idle": LawnMowerActivity.DOCKED,
+    # "offline" has no activity on purpose: the entity reports unavailable
 }
 
 async def async_setup_entry(hass, entry, async_add_entities):
