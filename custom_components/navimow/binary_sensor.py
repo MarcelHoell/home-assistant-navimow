@@ -1,23 +1,25 @@
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass, BinarySensorEntity
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
-from homeassistant.helpers.entity import DeviceInfo
+
 from .const import DOMAIN, is_online
+from .entity import NavimowEntity
 
 async def async_setup_entry(hass, entry, async_add_entities):
     coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
     devices = hass.data[DOMAIN][entry.entry_id]["devices"]
     async_add_entities([NavimowConnectivity(coordinator, d) for d in devices])
 
-class NavimowConnectivity(CoordinatorEntity, BinarySensorEntity):
-    _attr_has_entity_name = True
+class NavimowConnectivity(NavimowEntity, BinarySensorEntity):
     _attr_translation_key = "connectivity"
     _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
 
     def __init__(self, coordinator, device_data):
-        super().__init__(coordinator)
-        self._id = device_data.get("id")
-        self._attr_unique_id = f"{self._id}_connectivity"
-        self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, self._id)})
+        super().__init__(coordinator, device_data, "connectivity")
+
+    @property
+    def available(self) -> bool:
+        # Reporting the mower as offline is this entity's job, so it stays
+        # available as long as the coordinator itself is healthy.
+        return self.coordinator.last_update_success
 
     @property
     def is_on(self):

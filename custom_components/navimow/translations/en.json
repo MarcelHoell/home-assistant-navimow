@@ -11,6 +11,10 @@
       "auth": {
         "title": "Link Navimow Account",
         "description": "Please click [this link]({auth_url}) to log into your Segway Navimow account.\n\nOnce completed, this window will close or update automatically."
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate Navimow",
+        "description": "The Navimow session for **{account}** has expired. Continue to log in again — your devices, entity ids and history are kept."
       }
     },
     "error": {
@@ -20,7 +24,8 @@
       "cannot_connect": "Failed to connect to Navimow servers."
     },
     "abort": {
-      "already_configured": "An account with this name is already configured."
+      "already_configured": "An account with this name is already configured.",
+      "reauth_successful": "Navimow was re-authenticated successfully."
     }
   },
   "entity": {

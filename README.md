@@ -31,6 +31,7 @@ built on the official Segway OpenAPI.
 - Fully configured from the Home Assistant UI, no YAML required
 - Localised in English, German and Italian — Home Assistant picks the language
   from each user's profile and falls back to English
+- Re-authentication in place when the session expires, plus redacted diagnostics
 
 ## 📋 Requirements
 
@@ -120,8 +121,9 @@ to be docked.
 **Commands do nothing** — test with Developer Tools → Actions →
 `lawn_mower.dock`. If that fails too, it is the API, not the dashboard.
 
-**Authentication errors** — verify the Navimow phone app still works, then
-remove and re-add the integration.
+**Authentication errors** — Home Assistant raises a *Reconfigure* notification
+when the session dies. Click it and log in again; devices, entity ids and
+history are kept. Removing the integration is not necessary.
 
 ### Debug logging
 
@@ -136,10 +138,13 @@ logger:
 This logs the raw `authList` / `getVehicleStatus` responses and every MQTT
 payload — attach those (redact tokens and serial numbers) when reporting a bug.
 
+Quicker: **Settings → Devices & Services → Navimow → ⋮ → Download diagnostics**
+gives the same picture with tokens and credentials already redacted.
+
 ## 🧪 Development
 
 ```bash
-python3 tests/test_is_online.py
+python3 tests/test_navimow.py
 ```
 
 Raw vehicle states come from Segway and include typos (`isIdel`). They are

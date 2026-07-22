@@ -7,6 +7,7 @@ import uuid
 from urllib.parse import urlparse
 import paho.mqtt.client as mqtt
 
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from .const import DOMAIN
 
@@ -72,12 +73,33 @@ class NavimowDataUpdateCoordinator(DataUpdateCoordinator):
         _LOGGER.debug("OAuth token refreshed (expires in %ds)", expires_in)
         return True
 
+    async def async_shutdown(self) -> None:
+        """Stop the MQTT client so it does not outlive the config entry.
+
+        Without this a reload leaves an orphan client behind that keeps
+        reconnecting and writing into a dead coordinator's data.
+        """
+        client, self._mqtt_client = self._mqtt_client, None
+        if client:
+            def _stop():
+                client.loop_stop()
+                client.disconnect()
+
+            try:
+                await self.hass.async_add_executor_job(_stop)
+            except Exception as err:
+                _LOGGER.warning("Error while stopping MQTT client: %s", err)
+        await super().async_shutdown()
+
     async def _async_refresh_mqtt_credentials_on_disconnect(self) -> None:
         """Refresh MQTT credentials after disconnection.
         
         When MQTT disconnects, it's often because the OAuth token expired.
         We need to refresh the token first, then fetch fresh MQTT credentials.
         """
+        if self._mqtt_client is None:
+            return  # Shutting down, this disconnect is the one we asked for
+
         try:
             # First ensure we have a fresh OAuth token
             await self._async_ensure_valid_token()
@@ -143,7 +165,8 @@ class NavimowDataUpdateCoordinator(DataUpdateCoordinator):
         if isinstance(data, dict) and data.get("error") == "TOKEN_EXPIRED":
             _LOGGER.info("Access token expired, attempting refresh...")
             if not await self._async_ensure_valid_token(force=True):
-                raise UpdateFailed("Session expired. Please remove and re-add the integration.")
+                # Triggers the reauth flow, which keeps the entry and its entity ids
+                raise ConfigEntryAuthFailed("Navimow session expired")
             data = await self.api.async_get_all_vehicles_status(device_ids)
 
         if data is None or (isinstance(data, dict) and data.get("error")):

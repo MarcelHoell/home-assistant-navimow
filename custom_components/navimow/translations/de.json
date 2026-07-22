@@ -11,6 +11,10 @@
       "auth": {
         "title": "Navimow-Konto verknüpfen",
         "description": "Bitte klicke auf [diesen Link]({auth_url}), um dich bei deinem Segway-Navimow-Konto anzumelden.\n\nAnschließend schließt oder aktualisiert sich dieses Fenster automatisch."
+      },
+      "reauth_confirm": {
+        "title": "Navimow neu anmelden",
+        "description": "Die Navimow-Sitzung für **{account}** ist abgelaufen. Fahre fort, um dich erneut anzumelden — Geräte, Entitäts-IDs und Verlauf bleiben erhalten."
       }
     },
     "error": {
@@ -20,7 +24,8 @@
       "cannot_connect": "Verbindung zu den Navimow-Servern fehlgeschlagen."
     },
     "abort": {
-      "already_configured": "Ein Konto mit diesem Namen ist bereits eingerichtet."
+      "already_configured": "Ein Konto mit diesem Namen ist bereits eingerichtet.",
+      "reauth_successful": "Navimow wurde erfolgreich neu angemeldet."
     }
   },
   "entity": {

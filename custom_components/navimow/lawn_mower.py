@@ -1,9 +1,10 @@
 from homeassistant.components.lawn_mower import LawnMowerEntity, LawnMowerEntityFeature, LawnMowerActivity
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.helpers.entity import DeviceInfo
 import logging
-from .const import DOMAIN, is_online
+
+from .const import DOMAIN
+from .entity import NavimowEntity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -25,25 +26,32 @@ RAW_STATE_TO_CANONICAL = {
     "offline": "unknown",
 }
 
+CANONICAL_TO_ACTIVITY = {
+    "mowing": LawnMowerActivity.MOWING,
+    "returning": LawnMowerActivity.RETURNING,
+    "paused": LawnMowerActivity.PAUSED,
+    "error": LawnMowerActivity.ERROR,
+    "docked": LawnMowerActivity.DOCKED,
+    # ponytail: no IDLE member in LawnMowerActivity, DOCKED is the closest
+    "idle": LawnMowerActivity.DOCKED,
+}
+
 async def async_setup_entry(hass, entry, async_add_entities):
     coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
     devices = hass.data[DOMAIN][entry.entry_id]["devices"]
     async_add_entities([NavimowLawnMower(coordinator, d) for d in devices])
 
-class NavimowLawnMower(CoordinatorEntity, LawnMowerEntity):
-    _attr_has_entity_name = True
+class NavimowLawnMower(NavimowEntity, LawnMowerEntity):
     _attr_name = None  # the mower entity carries the device name itself
     _attr_supported_features = (
         LawnMowerEntityFeature.START_MOWING | LawnMowerEntityFeature.PAUSE | LawnMowerEntityFeature.DOCK
     )
 
     def __init__(self, coordinator, device_data):
-        super().__init__(coordinator)
-        self._id = device_data.get("id")
-        self._attr_unique_id = self._id
+        super().__init__(coordinator, device_data)
         self._api = coordinator.api
-        
-        # Questo collega l'entità al dispositivo fisico nella UI
+
+        # Only the mower entity names the device, the others just attach to it
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, self._id)},
             name=device_data.get("name"),
@@ -53,35 +61,15 @@ class NavimowLawnMower(CoordinatorEntity, LawnMowerEntity):
         )
 
     @property
-    def available(self) -> bool:
-        """Offline or missing from the API payload means we cannot command it."""
-        return super().available and is_online(self.coordinator.data.get(self._id))
-
-    @property
     def activity(self) -> LawnMowerActivity | None:
         """Get current mowing activity state."""
-        device_status = self.coordinator.data.get(self._id, {})
-
-        raw_state = device_status.get("vehicleState")
+        raw_state = self.status.get("vehicleState")
         canonical = RAW_STATE_TO_CANONICAL.get(raw_state, "unknown")
-
-        if canonical == "mowing":
-            return LawnMowerActivity.MOWING
-        if canonical == "returning":
-            return LawnMowerActivity.RETURNING
-        if canonical == "paused":
-            return LawnMowerActivity.PAUSED
-        if canonical == "error":
-            return LawnMowerActivity.ERROR
-        if canonical == "docked":
-            return LawnMowerActivity.DOCKED
-        if canonical == "idle":
-            # ponytail: no IDLE member before HA 2024.6, DOCKED is the closest
-            return LawnMowerActivity.DOCKED
-
-        # Unknown raw state: say so instead of claiming it is parked
-        _LOGGER.debug("Unmapped vehicleState %r for device %s", raw_state, self._id)
-        return None
+        activity = CANONICAL_TO_ACTIVITY.get(canonical)
+        if activity is None:
+            # Unknown raw state: say so instead of claiming it is parked
+            _LOGGER.debug("Unmapped vehicleState %r for device %s", raw_state, self._id)
+        return activity
 
     async def _async_send_command(self, command: str, params: dict = None, label: str = "") -> None:
         """Send command to device with proactive token refresh.
@@ -92,7 +80,7 @@ class NavimowLawnMower(CoordinatorEntity, LawnMowerEntity):
         logged as a success.
         """
         if not await self.coordinator._async_ensure_valid_token():
-            raise HomeAssistantError("Navimow session expired, please re-add the integration")
+            raise HomeAssistantError("Navimow session expired, please re-authenticate")
 
         try:
             res = await self._api.async_send_command(self._id, command, params)
@@ -109,7 +97,7 @@ class NavimowLawnMower(CoordinatorEntity, LawnMowerEntity):
         await self.coordinator.async_request_refresh()
 
     async def async_start_mowing(self):
-        raw_state = self.coordinator.data.get(self._id, {}).get("vehicleState")
+        raw_state = self.status.get("vehicleState")
         if RAW_STATE_TO_CANONICAL.get(raw_state) == "paused":
             # Resuming needs PauseUnpause, StartStop would restart the job
             await self._async_send_command(

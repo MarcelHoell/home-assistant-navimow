@@ -60,6 +60,24 @@ class NavimowConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Initialize the flow."""
         self.redirect_uri = None
         self.account_name = None
+        self._reauth_entry = None
+
+    async def async_step_reauth(self, entry_data):
+        """Tokens died: re-run the OAuth link instead of losing the entry."""
+        self._reauth_entry = self.hass.config_entries.async_get_entry(
+            self.context["entry_id"]
+        )
+        self.account_name = self._reauth_entry.title
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(self, user_input=None):
+        """Ask for confirmation, then send the user through the OAuth link again."""
+        if user_input is None:
+            return self.async_show_form(
+                step_id="reauth_confirm",
+                description_placeholders={"account": self.account_name},
+            )
+        return await self.async_step_auth()
 
     async def async_step_user(self, user_input=None):
         """First step: Ask user for account name."""
@@ -130,14 +148,17 @@ class NavimowConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 token_data = await response.json()
 
                 if "access_token" in token_data:
-                    return self.async_create_entry(
-                        title=self.account_name, 
-                        data={
-                            "access_token": token_data["access_token"],
-                            "refresh_token": token_data.get("refresh_token"),
-                            "expires_in": token_data.get("expires_in", 3600),
-                        }
-                    )
+                    data = {
+                        "access_token": token_data["access_token"],
+                        "refresh_token": token_data.get("refresh_token"),
+                        "expires_in": token_data.get("expires_in", 3600),
+                    }
+                    if self._reauth_entry:
+                        return self.async_update_reload_and_abort(
+                            self._reauth_entry,
+                            data={**self._reauth_entry.data, **data},
+                        )
+                    return self.async_create_entry(title=self.account_name, data=data)
                 else:
                     _LOGGER.error("Error token response: %s", token_data)
                     return self.async_abort(reason="auth_failed")

@@ -1,32 +1,28 @@
 from homeassistant.components.device_tracker import SourceType
 from homeassistant.components.device_tracker.config_entry import TrackerEntity
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
-from homeassistant.helpers.entity import DeviceInfo
+
 from .const import DOMAIN
+from .entity import NavimowEntity
 
 async def async_setup_entry(hass, entry, async_add_entities):
     coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
     devices = hass.data[DOMAIN][entry.entry_id]["devices"]
     async_add_entities([NavimowTracker(coordinator, d) for d in devices])
 
-class NavimowTracker(CoordinatorEntity, TrackerEntity):
-    _attr_has_entity_name = True
+class NavimowTracker(NavimowEntity, TrackerEntity):
     _attr_translation_key = "position"
 
     def __init__(self, coordinator, device_data):
-        super().__init__(coordinator)
-        self._id = device_data.get("id")
-        self._attr_unique_id = f"{self._id}_tracker"
-        self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, self._id)})
+        super().__init__(coordinator, device_data, "tracker")
 
     @property
     def latitude(self):
-        pos = self.coordinator.data.get(self._id, {}).get("position")
+        pos = self.status.get("position")
         return pos.get("lat") if pos else None
 
     @property
     def longitude(self):
-        pos = self.coordinator.data.get(self._id, {}).get("position")
+        pos = self.status.get("position")
         return pos.get("lng") if pos else None
 
     @property
