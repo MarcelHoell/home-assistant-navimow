@@ -37,6 +37,14 @@ Everything lives in `custom_components/navimow/`:
 - Battery lives at `capacityRemaining[0].rawValue`; position at `position.lat` / `position.lng`.
 - Comments and some log strings are mixed Italian/English. Write new ones in English.
 
+## Prior art, checked July 2026
+
+Investigated whether anyone reaches data we do not. Nobody does — don't redo this.
+
+- **`segwaynavimow/NavimowHA`** (official, v1.1.0, on `navimow-sdk`): same five endpoints plus `/openapi/smarthome/responseCommands`. Subscribes to the *identical* three MQTT topics we removed, with a source comment reading "TODO: adjust to the actual MQTT topic format" — Segway's own code is unsure they are right. Its `MowerState` declares `position`, `mowing_time`, `total_mowing_time`, `signal_strength` and `timestamp`, but those are aspirational dataclass fields, exactly like the handlers we deleted. It maps `isIdel` to `idle`, which our measurements show is wrong. It exposes a `set_blade_height` service that immediately raises "not supported via REST API". Fewer entities than this fork. **Its domain is also `navimow`, so it cannot be installed alongside this one.**
+- **`TA2k/ioBroker.navimow`**: same host, same topics, no additional endpoints.
+- **No map anywhere.** The app's map is not part of the OpenAPI. Only the X3 series has a genuinely open API (expansion bay, developer credentials via the app); the H3000 does not.
+
 ## Conventions
 
 - Commit messages: Conventional Commits, English.
