@@ -179,7 +179,12 @@ class NavimowDataUpdateCoordinator(DataUpdateCoordinator):
         if not mqtt_info:
             return
 
-        _LOGGER.debug("MQTT info: %s", mqtt_info)
+        # Never log pwdInfo/userName: users are asked to attach debug logs to bug reports
+        _LOGGER.debug(
+            "MQTT info: host=%s path=%s (credentials omitted)",
+            mqtt_info.get("mqttHost"),
+            mqtt_info.get("mqttUrl"),
+        )
         # Store mqtt_info for later credential refresh
         self._mqtt_info = mqtt_info
 
