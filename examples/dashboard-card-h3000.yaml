@@ -1,0 +1,113 @@
+# Navimow H3000 — ready to paste, real entity ids, nothing to replace.
+# "Add card" -> "Manual", paste everything below.
+
+type: vertical-stack
+cards:
+  - type: heading
+    heading: Navimow H3000
+    heading_style: title
+
+  - type: tile
+    entity: lawn_mower.navimow_h3000
+    name: Mower
+    features_position: bottom
+    features:
+      - type: lawn-mower-commands
+        commands:
+          - start_mowing
+          - pause
+          - dock
+
+  # The tile feature above hides commands that don't fit the current activity
+  # (docked -> only "start", mowing -> only "pause"/"dock"). This row always
+  # shows all three. Delete whichever of the two you don't want.
+  - type: horizontal-stack
+    cards:
+      - type: button
+        name: Mow
+        icon: mdi:play
+        show_state: false
+        tap_action:
+          action: perform-action
+          perform_action: lawn_mower.start_mowing
+          target:
+            entity_id: lawn_mower.navimow_h3000
+      - type: button
+        name: Pause
+        icon: mdi:pause
+        show_state: false
+        tap_action:
+          action: perform-action
+          perform_action: lawn_mower.pause
+          target:
+            entity_id: lawn_mower.navimow_h3000
+      - type: button
+        name: Dock
+        icon: mdi:home-import-outline
+        show_state: false
+        tap_action:
+          action: perform-action
+          perform_action: lawn_mower.dock
+          target:
+            entity_id: lawn_mower.navimow_h3000
+
+  - type: gauge
+    entity: sensor.navimow_h3000_battery
+    name: Battery
+    min: 0
+    max: 100
+    needle: false
+    severity:
+      green: 50
+      yellow: 20
+      red: 0
+
+  - type: horizontal-stack
+    cards:
+      - type: tile
+        entity: binary_sensor.navimow_h3000_connectivity
+        name: Connection
+      - type: tile
+        entity: update.navimow_unofficial_update
+        name: Integration
+
+  - type: map
+    entities:
+      - entity: device_tracker.navimow_h3000_position
+    hours_to_show: 2
+    theme_mode: auto
+    aspect_ratio: "16:9"
+
+  - type: entities
+    title: Details
+    show_header_toggle: false
+    entities:
+      - entity: lawn_mower.navimow_h3000
+        name: Activity
+      - entity: sensor.navimow_h3000_battery
+        name: Battery
+      - entity: binary_sensor.navimow_h3000_connectivity
+        name: Connectivity
+      - entity: device_tracker.navimow_h3000_position
+        name: Position
+      - entity: update.navimow_unofficial_update
+        name: Integration update
+
+  - type: history-graph
+    hours_to_show: 24
+    entities:
+      - entity: sensor.navimow_h3000_battery
+      - entity: lawn_mower.navimow_h3000
+
+  # Only visible while the mower reports an error state
+  - type: conditional
+    conditions:
+      - condition: state
+        entity: lawn_mower.navimow_h3000
+        state: error
+    card:
+      type: markdown
+      content: >-
+        ## ⚠️ Mower error
+
+        State: `{{ states('lawn_mower.navimow_h3000') }}`

@@ -2,7 +2,7 @@ from homeassistant.components.lawn_mower import LawnMowerEntity, LawnMowerEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.helpers.entity import DeviceInfo
 import logging
-from .const import DOMAIN
+from .const import DOMAIN, is_online
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -51,10 +51,15 @@ class NavimowLawnMower(CoordinatorEntity, LawnMowerEntity):
         )
 
     @property
-    def activity(self) -> LawnMowerActivity:
+    def available(self) -> bool:
+        """Offline or missing from the API payload means we cannot command it."""
+        return super().available and is_online(self.coordinator.data.get(self._id))
+
+    @property
+    def activity(self) -> LawnMowerActivity | None:
         """Get current mowing activity state."""
         device_status = self.coordinator.data.get(self._id, {})
-        
+
         raw_state = device_status.get("vehicleState")
         canonical = RAW_STATE_TO_CANONICAL.get(raw_state, "unknown")
 
@@ -66,9 +71,15 @@ class NavimowLawnMower(CoordinatorEntity, LawnMowerEntity):
             return LawnMowerActivity.PAUSED
         if canonical == "error":
             return LawnMowerActivity.ERROR
-        
-        # Default per idle, docked o stati sconosciuti
-        return LawnMowerActivity.DOCKED
+        if canonical == "docked":
+            return LawnMowerActivity.DOCKED
+        if canonical == "idle":
+            # ponytail: no IDLE member before HA 2024.6, DOCKED is the closest
+            return LawnMowerActivity.DOCKED
+
+        # Unknown raw state: say so instead of claiming it is parked
+        _LOGGER.debug("Unmapped vehicleState %r for device %s", raw_state, self._id)
+        return None
 
     async def _async_send_command(self, command: str, params: dict = None, label: str = "") -> None:
         """Send command to device with proactive token refresh.

@@ -1,7 +1,7 @@
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass, BinarySensorEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.helpers.entity import DeviceInfo
-from .const import DOMAIN
+from .const import DOMAIN, is_online
 
 async def async_setup_entry(hass, entry, async_add_entities):
     coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
@@ -20,5 +20,4 @@ class NavimowConnectivity(CoordinatorEntity, BinarySensorEntity):
 
     @property
     def is_on(self):
-        device_status = self.coordinator.data.get(self._id, {})
-        return device_status.get("online", True) and device_status.get("vehicleState") != "offline"
+        return is_online(self.coordinator.data.get(self._id))

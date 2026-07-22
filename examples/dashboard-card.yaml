@@ -1,0 +1,103 @@
+# Navimow example dashboard card — copy/paste into a dashboard (raw config editor)
+# or into "Add card" -> "Manual".
+#
+# !! Replace `navimow` below with YOUR device slug, otherwise every card shows
+# "Entity not found". The slug comes from the device name Segway's API returns
+# (e.g. "Navimow H800E-1234" -> navimow_h800e_1234).
+#
+# List your real ids in Developer Tools -> Template:
+#   {{ states | selectattr('entity_id','search','navimow')
+#             | map(attribute='entity_id') | list }}
+#
+# The integration creates 5 entities per mower (device name "Navimow" -> ids below):
+#
+#   lawn_mower.navimow                    start_mowing / pause / dock
+#   sensor.navimow_battery                battery %
+#   sensor.navimow_error                  error code, "none" when healthy
+#   binary_sensor.navimow_connectivity    online/offline
+#   device_tracker.navimow_position       GPS lat/lng
+#
+# Core cards only, no HACS frontend dependencies.
+
+type: vertical-stack
+cards:
+  - type: heading
+    heading: Navimow
+    heading_style: title
+
+  # Mower state + command buttons
+  - type: tile
+    entity: lawn_mower.navimow
+    name: Mower
+    features_position: bottom
+    features:
+      - type: lawn-mower-commands
+        commands:
+          - start_mowing
+          - pause
+          - dock
+
+  - type: gauge
+    entity: sensor.navimow_battery
+    name: Battery
+    min: 0
+    max: 100
+    needle: false
+    severity:
+      green: 50
+      yellow: 20
+      red: 0
+
+  - type: horizontal-stack
+    cards:
+      - type: tile
+        entity: binary_sensor.navimow_connectivity
+        name: Connection
+      - type: tile
+        entity: sensor.navimow_error
+        name: Error
+
+  # Live position. `hours_to_show: 0` shows only the current point;
+  # raise it to draw the mowing path from recorder history.
+  - type: map
+    entities:
+      - entity: device_tracker.navimow_position
+    hours_to_show: 2
+    theme_mode: auto
+    aspect_ratio: "16:9"
+
+  # Raw values, handy while debugging the integration
+  - type: entities
+    title: Details
+    show_header_toggle: false
+    entities:
+      - entity: lawn_mower.navimow
+        name: Activity
+      - entity: sensor.navimow_battery
+        name: Battery
+      - entity: sensor.navimow_error
+        name: Error
+      - entity: binary_sensor.navimow_connectivity
+        name: Connectivity
+      - entity: device_tracker.navimow_position
+        name: Position
+
+  # Battery history
+  - type: history-graph
+    hours_to_show: 24
+    entities:
+      - entity: sensor.navimow_battery
+      - entity: lawn_mower.navimow
+
+  # Conditional: only shows up when something is wrong
+  - type: conditional
+    conditions:
+      - condition: state
+        entity: sensor.navimow_error
+        state_not: none
+    card:
+      type: markdown
+      content: >-
+        ## ⚠️ Mower error
+
+        `{{ states('sensor.navimow_error') }}`

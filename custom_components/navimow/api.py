@@ -30,6 +30,7 @@ class NavimowApiClient:
         try:
             async with self._session.get(url, headers=self._get_headers()) as response:
                 res = await response.json()
+                _LOGGER.debug("authList raw response: %s", res)
                 if res.get("code") == 1:
                     return res.get("data", {}).get("payload", {}).get("devices", [])
                 return []
@@ -53,6 +54,7 @@ class NavimowApiClient:
                 res = await response.json()
                 code = res.get("code")
                 desc = res.get("desc", "")
+                _LOGGER.debug("getVehicleStatus raw response: %s", res)
 
                 if code == 1:
                     devices = res.get("data", {}).get("payload", {}).get("devices", [])
