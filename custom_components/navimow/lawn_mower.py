@@ -57,7 +57,8 @@ class NavimowLawnMower(NavimowEntity, LawnMowerEntity):
             name=device_data.get("name"),
             manufacturer="Segway",
             model=device_data.get("model"),
-            sw_version=device_data.get("firmware_version"),
+            # authList calls it "firmware", not "firmware_version"
+            sw_version=device_data.get("firmware"),
         )
 
     @property

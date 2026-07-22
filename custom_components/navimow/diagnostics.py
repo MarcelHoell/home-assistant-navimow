@@ -3,7 +3,8 @@ from homeassistant.components.diagnostics import async_redact_data
 
 from .const import DOMAIN
 
-TO_REDACT = {"access_token", "refresh_token", "pwdInfo", "userName", "sn", "deviceSn"}
+# "id" is the mower's serial number, so it goes too
+TO_REDACT = {"access_token", "refresh_token", "pwdInfo", "userName", "id", "sn", "deviceSn"}
 
 
 async def async_get_config_entry_diagnostics(hass, entry) -> dict:
@@ -15,7 +16,8 @@ async def async_get_config_entry_diagnostics(hass, entry) -> dict:
         {
             "entry_data": dict(entry.data),
             "devices": stored["devices"],
-            "coordinator_data": coordinator.data,
+            # Listed, not keyed by device id — the key would leak the serial
+            "coordinator_data": list((coordinator.data or {}).values()),
             "mqtt_connected": coordinator._mqtt_client is not None,
         },
         TO_REDACT,
