@@ -1,144 +1,167 @@
-# Segway Navimow Integration for Home Assistant
+<div align="center">
 
 <img src="custom_components/navimow/brand/icon.png" alt="Navimow Integration Icon" width="128" height="128" />
 
-Unofficial Home Assistant custom integration for Segway Navimow robotic lawn mowers. This integration connects your mower using the official Segway OpenAPI, allowing you to monitor real-time status and control operations directly from Home Assistant.
+# Segway Navimow for Home Assistant
+
+Unofficial Home Assistant integration for Segway Navimow robotic lawn mowers,
+built on the official Segway OpenAPI.
+
+[![HACS Validation](https://github.com/MarcelHoell/home-assistant-navimow/actions/workflows/hacs.yml/badge.svg)](https://github.com/MarcelHoell/home-assistant-navimow/actions/workflows/hacs.yml)
+[![Hassfest](https://github.com/MarcelHoell/home-assistant-navimow/actions/workflows/hassfest.yml/badge.svg)](https://github.com/MarcelHoell/home-assistant-navimow/actions/workflows/hassfest.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+</div>
 
 > [!WARNING]
-> This integration is currently in **Active Development (Alpha)**. Features may change, and bugs are expected. Use at your own risk.
+> **Alpha.** Features may change and bugs are expected. Use at your own risk.
+
+> [!NOTE]
+> This is a fork of [niddu85/home-assistant-navimow](https://github.com/niddu85/home-assistant-navimow).
+> The integration domain is still `navimow`, so do **not** install both at the same time.
+
+---
 
 ## ✨ Features
 
-### Implemented
-
-- **Lawn Mower Entity:** Full native Home Assistant `lawn_mower` entity
-  - Start/stop mowing
-  - Pause operation
-  - Return to dock
-  - Real-time state monitoring (mowing, docked, paused, idle, error, returning)
-- **Sensors:**
-  - Battery level (percentage)
-  - Real-time state updates via MQTT
-
-- **Binary Sensors:**
-  - Connectivity status (online/offline)
-
-- **Device Tracker:**
-  - GPS location tracking with real-time position updates ()
-
-- **Data Updates:**
-  - Polling updates every 30 seconds via REST API
-  - Real-time MQTT WebSocket connection for instant state changes
-  - Automatic token refresh when access tokens expire
-
-### Architecture
-
-- **OAuth2 Authentication:** Secure account connection via official Navimow OAuth flow
-- **Data Coordinator:** Centralized data management with automatic refresh handling
-- **MQTT Real-time Updates:** WebSocket-based MQTT for instant device state changes
-- **Token Management:** Automatic refresh token handling with persistent storage
+- Native `lawn_mower` entity — start, pause, return to dock, live activity
+- Battery level, error state, connectivity and GPS position
+- **Real-time push** via MQTT over WebSockets, plus a 30 s REST poll as a safety net
+- OAuth2 login through the official Navimow flow, with automatic token refresh
+- Fully configured from the Home Assistant UI, no YAML required
 
 ## 📋 Requirements
 
-- A Segway Navimow robotic lawn mower with an active account
+- A Segway Navimow mower with an active Segway account
 - Home Assistant 2024.1 or later
-- Active internet connection
+- Internet access from your Home Assistant instance
 
 ## ⚙️ Installation
 
-### HACS (Recommended - Coming Soon)
+### HACS (recommended)
 
-_Note: Until the repository is added to the default HACS store, you must add it as a custom repository._
+1. HACS → ⋮ (top right) → **Custom repositories**
+2. Repository: `https://github.com/MarcelHoell/home-assistant-navimow`
+3. Category: **Integration** → **Add**
+4. Search for *Navimow*, install it, then **restart Home Assistant**
 
-1. Open HACS in your Home Assistant instance
-2. Go to **Integrations** → click the three dots in the top right → **Custom repositories**
-3. Repository: `https://github.com/niddu85/home-assistant-navimow`
-4. Category: **Integration**
-5. Click **Add**
-6. Search for "Navimow" in HACS and install it
-7. Restart Home Assistant
+### Manual
 
-### Manual Installation
+Copy `custom_components/navimow/` into your Home Assistant `custom_components/`
+directory and restart.
 
-1. Clone or download this repository
-2. Copy the `custom_components/navimow` folder to your `custom_components` directory
-3. Restart Home Assistant
+## 🛠️ Setup
 
-## 🛠️ Configuration
+1. **Settings → Devices & Services → + Add Integration**
+2. Search for **Navimow**
+3. Give the account a name, then follow the OAuth link that opens
+4. Log in with your Segway credentials and confirm — the integration picks up
+   the redirect and finishes on its own
 
-Configuration is done completely via the Home Assistant UI (Config Flow).
+## 📱 Entities
 
-1. Go to **Settings** → **Devices & Services** → **Integrations**
-2. Click **+ Create Automation** and search for **Navimow**
-3. You'll be prompted to authenticate with your Navimow account
-4. A browser window will open for OAuth authentication
-5. After authentication, the integration will be configured automatically
+One set per mower. `{slug}` is derived from the device name the Segway API
+reports, e.g. a *Navimow H3000* becomes `navimow_h3000`.
 
-## 📱 Available Entities
+| Entity | Description |
+| --- | --- |
+| `lawn_mower.{slug}` | Activity + commands. States: `mowing`, `paused`, `docked`, `returning`, `error`. Becomes `unavailable` when the mower is offline. |
+| `sensor.{slug}_battery` | Battery charge in %, device class `battery` |
+| `sensor.{slug}_error` | Current error code, `none` when healthy |
+| `binary_sensor.{slug}_connectivity` | `on` = mower reachable |
+| `device_tracker.{slug}_position` | GPS position, source type `gps` |
 
-### Lawn Mower
+Not sure about your exact ids? **Developer Tools → Template**:
 
-- Entity ID: `lawn_mower.{device_name}`
-- States: `docked`, `mowing`, `paused`, `returning`, `idle`, `error`
-- Commands: `start_mowing()`, `pause()`, `dock()`
+```jinja
+{{ states | selectattr('entity_id','search','navimow')
+          | map(attribute='entity_id') | list }}
+```
 
-### Sensor
+### Actions
 
-- Entity ID: `sensor.{device_name}_battery`
-- Value: Battery percentage (0-100%)
-- Unit: %
+Standard Home Assistant lawn mower actions: `lawn_mower.start_mowing`,
+`lawn_mower.pause`, `lawn_mower.dock`.
 
-### Binary Sensor
+## 🖼️ Dashboard
 
-- Entity ID: `binary_sensor.{device_name}_connectivity`
-- On: Device is online
-- Off: Device is offline
+Ready-to-paste Lovelace cards live in [`examples/`](examples/):
 
-### Device Tracker
+- [`dashboard-card.yaml`](examples/dashboard-card.yaml) — generic, replace the slug
+- [`dashboard-card-h3000.yaml`](examples/dashboard-card-h3000.yaml) — concrete example
 
-- Entity ID: `device_tracker.{device_name}_position`
-- Attributes: `latitude`, `longitude`, `gps_accuracy`
+Both use core cards only — no extra frontend dependencies. Copy the file
+contents into **Add card → Manual**.
 
-## 🔄 How It Works
+## 🔄 How it works
 
-1. **OAuth Authentication:** Securely authenticates with Segway servers using OAuth2
-2. **REST Polling:** Fetches device status every 30 seconds
-3. **MQTT Streaming:** Maintains a WebSocket connection for real-time updates
-4. **Token Management:** Automatically refreshes expired tokens
-5. **Entity Creation:** Creates Home Assistant entities for each connected device
+```
+OAuth2 ──► REST /authList          device list
+       ──► REST /getVehicleStatus  status, polled every 30 s
+       ──► MQTT over WebSockets    push updates, /downlink/vehicle/{id}/…
+```
+
+`coordinator.py` owns both channels. MQTT credentials are bound to the OAuth
+token, so on disconnect the coordinator refreshes the token, refetches the
+credentials and reconnects. Tokens are also refreshed proactively before
+expiry and reactively on a `TOKEN_EXPIRED` response.
 
 ## 🐛 Troubleshooting
 
-### Integration not showing up
+**Integration not listed after install** — restart Home Assistant, then clear
+the browser cache.
 
-- Restart Home Assistant after installation
-- Clear browser cache if stuck on setup page
+**All entities `unavailable`** — the mower is powered off or unreachable. This
+is expected: an offline mower is reported as unavailable rather than pretending
+to be docked.
 
-### Entities not updating
+**Commands do nothing** — test with Developer Tools → Actions →
+`lawn_mower.dock`. If that fails too, it is the API, not the dashboard.
 
-- Check that your internet connection is stable
-- Verify the Navimow app still works on your phone
-- Check Home Assistant logs for errors: `Settings` → `System` → `Logs`
+**Authentication errors** — verify the Navimow phone app still works, then
+remove and re-add the integration.
 
-### Authentication errors
+### Debug logging
 
-- Ensure your Navimow account is still active
-- Try removing the integration and re-adding it
+```yaml
+# configuration.yaml
+logger:
+  default: warning
+  logs:
+    custom_components.navimow: debug
+```
+
+This logs the raw `authList` / `getVehicleStatus` responses and every MQTT
+payload — attach those (redact tokens and serial numbers) when reporting a bug.
+
+## 🧪 Development
+
+```bash
+python3 tests/test_is_online.py
+```
+
+Raw vehicle states come from Segway and include typos (`isIdel`). They are
+mapped in `RAW_STATE_TO_CANONICAL` in `lawn_mower.py`; `sensor.py` keeps its
+own `_ERROR_RAW_STATES` set. Adding a state means touching both.
 
 ## 🤝 Contributing
 
-Contributions are welcome! If you find a bug or have a feature request, please open an issue or submit a pull request.
+Issues and pull requests welcome. Fixes that are not specific to this fork are
+best sent upstream to
+[niddu85/home-assistant-navimow](https://github.com/niddu85/home-assistant-navimow).
 
 ## 📜 Disclaimer
 
-This is an **unofficial** project and is **not** affiliated with, endorsed by, or sponsored by Segway or Navimow. It uses the official OpenAPI provided by Segway, but the implementation is maintained by the community.
+**Unofficial** project, not affiliated with, endorsed by or sponsored by
+Segway or Navimow. It uses the OpenAPI that Segway provides, but the
+implementation is community maintained.
 
 ## 📝 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT — see [LICENSE](LICENSE).
 
 ## 📚 References
 
-- [Segway Navimow Official App](https://www.segway.com/navimow/)
-- [Home Assistant Lawn Mower Component](https://www.home-assistant.io/integrations/lawn_mower/)
-- [Home Assistant Developer Documentation](https://developers.home-assistant.io/)
+- [Segway Navimow](https://www.segway.com/navimow/)
+- [Home Assistant `lawn_mower` integration](https://www.home-assistant.io/integrations/lawn_mower/)
+- [Home Assistant developer docs](https://developers.home-assistant.io/)
