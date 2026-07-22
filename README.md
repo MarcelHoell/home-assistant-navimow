@@ -29,6 +29,8 @@ built on the official Segway OpenAPI.
 - **Real-time push** via MQTT over WebSockets, plus a 30 s REST poll as a safety net
 - OAuth2 login through the official Navimow flow, with automatic token refresh
 - Fully configured from the Home Assistant UI, no YAML required
+- Localised in English, German and Italian — Home Assistant picks the language
+  from each user's profile and falls back to English
 
 ## 📋 Requirements
 

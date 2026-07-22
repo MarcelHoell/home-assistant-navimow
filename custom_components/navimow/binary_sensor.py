@@ -9,12 +9,13 @@ async def async_setup_entry(hass, entry, async_add_entities):
     async_add_entities([NavimowConnectivity(coordinator, d) for d in devices])
 
 class NavimowConnectivity(CoordinatorEntity, BinarySensorEntity):
+    _attr_has_entity_name = True
+    _attr_translation_key = "connectivity"
     _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
 
     def __init__(self, coordinator, device_data):
         super().__init__(coordinator)
         self._id = device_data.get("id")
-        self._attr_name = f"{device_data.get('name')} Connectivity"
         self._attr_unique_id = f"{self._id}_connectivity"
         self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, self._id)})
 

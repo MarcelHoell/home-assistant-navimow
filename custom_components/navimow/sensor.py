@@ -15,6 +15,8 @@ async def async_setup_entry(hass, entry, async_add_entities):
     )
 
 class NavimowBattery(CoordinatorEntity, SensorEntity):
+    _attr_has_entity_name = True
+    _attr_translation_key = "battery"
     _attr_device_class = SensorDeviceClass.BATTERY
     _attr_native_unit_of_measurement = PERCENTAGE
     _attr_state_class = SensorStateClass.MEASUREMENT
@@ -22,7 +24,6 @@ class NavimowBattery(CoordinatorEntity, SensorEntity):
     def __init__(self, coordinator, device_data):
         super().__init__(coordinator)
         self._id = device_data.get("id")
-        self._attr_name = f"{device_data.get('name')} Battery"
         self._attr_unique_id = f"{self._id}_battery"
         self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, self._id)})
 
@@ -34,12 +35,13 @@ class NavimowBattery(CoordinatorEntity, SensorEntity):
 
 
 class NavimowErrorSensor(CoordinatorEntity, SensorEntity):
+    _attr_has_entity_name = True
+    _attr_translation_key = "error"
     _attr_icon = "mdi:alert-circle"
 
     def __init__(self, coordinator, device_data):
         super().__init__(coordinator)
         self._id = device_data.get("id")
-        self._attr_name = f"{device_data.get('name')} Error"
         self._attr_unique_id = f"{self._id}_error"
         self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, self._id)})
 

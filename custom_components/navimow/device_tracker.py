@@ -10,10 +10,12 @@ async def async_setup_entry(hass, entry, async_add_entities):
     async_add_entities([NavimowTracker(coordinator, d) for d in devices])
 
 class NavimowTracker(CoordinatorEntity, TrackerEntity):
+    _attr_has_entity_name = True
+    _attr_translation_key = "position"
+
     def __init__(self, coordinator, device_data):
         super().__init__(coordinator)
         self._id = device_data.get("id")
-        self._attr_name = f"{device_data.get('name')} Position"
         self._attr_unique_id = f"{self._id}_tracker"
         self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, self._id)})
 

@@ -86,13 +86,14 @@ class NavimowApiClient:
             _LOGGER.error("Error during token refresh: %s", e)
             return {}
 
-    async def async_send_command(self, device_id: str, command: str, params: dict = None) -> bool:
-        """Send command to device."""
+    async def async_send_command(self, device_id: str, command: str, params: dict = None) -> dict:
+        """Send command to device. Returns the raw response so callers can report failures."""
         url = f"{BASE_URL}/sendCommands"
         payload = {"commands": [{"devices": [{"id": device_id}], "execution": {"command": command, "params": params}}]}
         async with self._session.post(url, headers=self._get_headers(), json=payload) as response:
             res = await response.json()
-            return res.get("code") == 1
+            _LOGGER.debug("sendCommands %s raw response: %s", command, res)
+            return res or {}
 
     async def async_get_mqtt_info(self) -> dict:
         """Fetch MQTT broker credentials."""

@@ -1,4 +1,5 @@
 from homeassistant.components.lawn_mower import LawnMowerEntity, LawnMowerEntityFeature, LawnMowerActivity
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.helpers.entity import DeviceInfo
 import logging
@@ -30,6 +31,8 @@ async def async_setup_entry(hass, entry, async_add_entities):
     async_add_entities([NavimowLawnMower(coordinator, d) for d in devices])
 
 class NavimowLawnMower(CoordinatorEntity, LawnMowerEntity):
+    _attr_has_entity_name = True
+    _attr_name = None  # the mower entity carries the device name itself
     _attr_supported_features = (
         LawnMowerEntityFeature.START_MOWING | LawnMowerEntityFeature.PAUSE | LawnMowerEntityFeature.DOCK
     )
@@ -37,14 +40,13 @@ class NavimowLawnMower(CoordinatorEntity, LawnMowerEntity):
     def __init__(self, coordinator, device_data):
         super().__init__(coordinator)
         self._id = device_data.get("id")
-        self._attr_name = device_data.get("name")
         self._attr_unique_id = self._id
         self._api = coordinator.api
         
         # Questo collega l'entità al dispositivo fisico nella UI
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, self._id)},
-            name=self._attr_name,
+            name=device_data.get("name"),
             manufacturer="Segway",
             model=device_data.get("model"),
             sw_version=device_data.get("firmware_version"),
@@ -83,60 +85,45 @@ class NavimowLawnMower(CoordinatorEntity, LawnMowerEntity):
 
     async def _async_send_command(self, command: str, params: dict = None, label: str = "") -> None:
         """Send command to device with proactive token refresh.
-        
+
         Ensures OAuth token is valid before sending the command to avoid
-        CODE_OAUTH_INFO_ILLEGAL errors when token has expired.
+        CODE_OAUTH_INFO_ILLEGAL errors when token has expired. Raises on a
+        rejected command so the failure surfaces in the UI instead of being
+        logged as a success.
         """
+        if not await self.coordinator._async_ensure_valid_token():
+            raise HomeAssistantError("Navimow session expired, please re-add the integration")
+
         try:
-            await self.coordinator._async_ensure_valid_token()
+            res = await self._api.async_send_command(self._id, command, params)
         except Exception as err:
-            _LOGGER.error("Failed to refresh token before sending command: %s", err)
-            raise
-        
-        await self._api.async_send_command(self._id, command, params)
+            raise HomeAssistantError(f"Could not reach Navimow servers: {err}") from err
+
+        if res.get("code") != 1:
+            raise HomeAssistantError(
+                f"Navimow rejected {command}: {res.get('desc') or res.get('code')}"
+            )
+
         if label:
             _LOGGER.info("%s for device %s", label, self._id)
         await self.coordinator.async_request_refresh()
 
     async def async_start_mowing(self):
-        device_status = self.coordinator.data.get(self._id, {})
-        raw_state = device_status.get("vehicleState")
-        canonical = RAW_STATE_TO_CANONICAL.get(raw_state, "unknown")
-        try:
-            if canonical == "paused":
-                await self._async_send_command(
-                    "action.devices.commands.PauseUnpause",
-                    {"on": True},
-                    "Resumed mowing"
-                )
-            else:
-                await self._async_send_command(
-                    "action.devices.commands.StartStop",
-                    {"on": True},
-                    "Started mowing"
-                )
-        except Exception as err:
-            _LOGGER.error("Failed to start mowing for device %s: %s", self._id, err)
-            raise
-    
-    async def async_pause(self):
-        try:
+        raw_state = self.coordinator.data.get(self._id, {}).get("vehicleState")
+        if RAW_STATE_TO_CANONICAL.get(raw_state) == "paused":
+            # Resuming needs PauseUnpause, StartStop would restart the job
             await self._async_send_command(
-                "action.devices.commands.PauseUnpause",
-                {"on": False},
-                "Paused mowing"
+                "action.devices.commands.PauseUnpause", {"on": True}, "Resumed mowing"
             )
-        except Exception as err:
-            _LOGGER.error("Failed to pause mowing for device %s: %s", self._id, err)
-            raise
+        else:
+            await self._async_send_command(
+                "action.devices.commands.StartStop", {"on": True}, "Started mowing"
+            )
+
+    async def async_pause(self):
+        await self._async_send_command(
+            "action.devices.commands.PauseUnpause", {"on": False}, "Paused mowing"
+        )
 
     async def async_dock(self):
-        try:
-            await self._async_send_command(
-                "action.devices.commands.Dock",
-                None,
-                "Docked"
-            )
-        except Exception as err:
-            _LOGGER.error("Failed to dock device %s: %s", self._id, err)
-            raise
+        await self._async_send_command("action.devices.commands.Dock", None, "Docked")

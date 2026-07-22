@@ -22,5 +22,25 @@
     "abort": {
       "already_configured": "An account with this name is already configured."
     }
+  },
+  "entity": {
+    "sensor": {
+      "battery": {
+        "name": "Battery"
+      },
+      "error": {
+        "name": "Error"
+      }
+    },
+    "binary_sensor": {
+      "connectivity": {
+        "name": "Connectivity"
+      }
+    },
+    "device_tracker": {
+      "position": {
+        "name": "Position"
+      }
+    }
   }
 }

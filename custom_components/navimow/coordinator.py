@@ -21,7 +21,6 @@ class NavimowDataUpdateCoordinator(DataUpdateCoordinator):
         self.entry = entry
         self.devices = devices
         self._mqtt_client = None
-        self._pending_mqtt_token = None
         self._mqtt_info = None
         self._token_expires_at = 0  # Timestamp when access token expires
         
@@ -32,44 +31,46 @@ class NavimowDataUpdateCoordinator(DataUpdateCoordinator):
             update_interval=timedelta(seconds=30),
         )
 
-    async def _async_ensure_valid_token(self) -> None:
-        """Refresh OAuth token only if expired or expiring soon.
-        
-        Checks token expiration timestamp before refreshing to avoid unnecessary
-        API calls. Maintains 10-second buffer before actual expiration.
+    async def _async_ensure_valid_token(self, force: bool = False) -> bool:
+        """Refresh the OAuth token if it expired or is about to.
+
+        The single place that refreshes tokens. `force` skips the expiry check
+        for the reactive path, where the server already told us the token is
+        dead. Returns True when a usable token is in place.
         """
-        # Check if token is still valid (with 10s buffer)
         now = time.time()
-        if now < self._token_expires_at - 10:
-            return  # Token still valid, no need to refresh
-        
+        if not force and now < self._token_expires_at - 10:
+            return True  # Token still valid, no need to refresh
+
         refresh_token = self.entry.data.get("refresh_token")
         if not refresh_token:
-            return
-        
+            return False
+
         try:
             token_response = await self.api.async_refresh_token(refresh_token)
-            if token_response and "access_token" in token_response:
-                new_access = token_response["access_token"]
-                new_refresh = token_response.get("refresh_token", refresh_token)
-                
-                # Calculate token expiration time
-                expires_in = token_response.get("expires_in", 3600)  # Default 1 hour if not provided
-                self._token_expires_at = now + expires_in
-                
-                self.api._token = new_access
-                
-                self.hass.config_entries.async_update_entry(
-                    self.entry,
-                    data={
-                        **self.entry.data,
-                        "access_token": new_access,
-                        "refresh_token": new_refresh,
-                    },
-                )
-                _LOGGER.debug("OAuth token refreshed (expires in %ds)", expires_in)
         except Exception as err:
             _LOGGER.warning("Failed to refresh OAuth token: %s", err)
+            return False
+
+        if not token_response or "access_token" not in token_response:
+            _LOGGER.error("Refresh token is invalid or server rejected the request")
+            return False
+
+        new_access = token_response["access_token"]
+        expires_in = token_response.get("expires_in", 3600)  # Default 1 hour if not provided
+        self._token_expires_at = now + expires_in
+        self.api._token = new_access
+
+        self.hass.config_entries.async_update_entry(
+            self.entry,
+            data={
+                **self.entry.data,
+                "access_token": new_access,
+                "refresh_token": token_response.get("refresh_token", refresh_token),
+            },
+        )
+        _LOGGER.debug("OAuth token refreshed (expires in %ds)", expires_in)
+        return True
 
     async def _async_refresh_mqtt_credentials_on_disconnect(self) -> None:
         """Refresh MQTT credentials after disconnection.
@@ -129,13 +130,10 @@ class NavimowDataUpdateCoordinator(DataUpdateCoordinator):
         # Proactively refresh token before each update to keep API and MQTT credentials in sync.
         # If only refreshed during HTTP fallback, MQTT would have stale token for extended periods,
         # causing commands to fail with CODE_OAUTH_INFO_ILLEGAL when token eventually expires.
-        try:
-            await self._async_ensure_valid_token()
-        except Exception as err:
-            _LOGGER.warning("Token refresh failed during update: %s", err)
-        
+        await self._async_ensure_valid_token()
+
         device_ids = [d["id"] for d in self.devices]
-        
+
         if not device_ids:
             _LOGGER.debug("No devices found for this account")
             return {}
@@ -144,42 +142,13 @@ class NavimowDataUpdateCoordinator(DataUpdateCoordinator):
 
         if isinstance(data, dict) and data.get("error") == "TOKEN_EXPIRED":
             _LOGGER.info("Access token expired, attempting refresh...")
-            
-            refresh_token = self.entry.data.get("refresh_token")
-            if not refresh_token:
-                raise UpdateFailed("Refresh token missing, reconnect the Navimow account")
-
-            token_response = await self.api.async_refresh_token(refresh_token)
-            
-            if token_response and "access_token" in token_response:
-                new_access = token_response["access_token"]
-                new_refresh = token_response.get("refresh_token", refresh_token)
-                
-                _LOGGER.info("New access token obtained successfully")
-
-                self.api._token = new_access
-                
-                self.hass.config_entries.async_update_entry(
-                    self.entry,
-                    data={
-                        **self.entry.data,
-                        "access_token": new_access,
-                        "refresh_token": new_refresh,
-                    },
-                )
-                # Update MQTT WebSocket auth headers to avoid reconnection failures (CODE_OAUTH_INFO_ILLEGAL)
-                # Store new token for MQTT credential refresh on disconnect
-                self._pending_mqtt_token = new_access
-
-                data = await self.api.async_get_all_vehicles_status(device_ids)
-            else:
-                _LOGGER.error("Refresh token is invalid or server rejected the request")
+            if not await self._async_ensure_valid_token(force=True):
                 raise UpdateFailed("Session expired. Please remove and re-add the integration.")
+            data = await self.api.async_get_all_vehicles_status(device_ids)
 
-        if data is None:
+        if data is None or (isinstance(data, dict) and data.get("error")):
             raise UpdateFailed("Communication error with Navimow servers")
 
-        
         return data
 
     async def async_setup_mqtt(self, mqtt_info):
@@ -225,6 +194,8 @@ class NavimowDataUpdateCoordinator(DataUpdateCoordinator):
             
             client.tls_set()
             client.tls_insecure_set(False)
+            # Back off instead of hammering the broker when it keeps rejecting us
+            client.reconnect_delay_set(min_delay=1, max_delay=120)
             
             def on_message(client, userdata, msg):
                 _LOGGER.debug("MQTT message received: topic=%s", msg.topic)

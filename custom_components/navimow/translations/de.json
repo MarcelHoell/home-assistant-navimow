@@ -1,0 +1,46 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Navimow einrichten",
+        "description": "Gib einen Namen an, um dieses Navimow-Konto zu identifizieren.",
+        "data": {
+          "account_name": "Kontoname"
+        }
+      },
+      "auth": {
+        "title": "Navimow-Konto verknüpfen",
+        "description": "Bitte klicke auf [diesen Link]({auth_url}), um dich bei deinem Segway-Navimow-Konto anzumelden.\n\nAnschließend schließt oder aktualisiert sich dieses Fenster automatisch."
+      }
+    },
+    "error": {
+      "invalid_url": "Die angegebene URL ist ungültig.",
+      "invalid_code": "Der Autorisierungscode konnte nicht ausgelesen werden.",
+      "auth_failed": "Anmeldung fehlgeschlagen: Token konnte nicht abgerufen werden.",
+      "cannot_connect": "Verbindung zu den Navimow-Servern fehlgeschlagen."
+    },
+    "abort": {
+      "already_configured": "Ein Konto mit diesem Namen ist bereits eingerichtet."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "battery": {
+        "name": "Akku"
+      },
+      "error": {
+        "name": "Fehler"
+      }
+    },
+    "binary_sensor": {
+      "connectivity": {
+        "name": "Verbindung"
+      }
+    },
+    "device_tracker": {
+      "position": {
+        "name": "Position"
+      }
+    }
+  }
+}
