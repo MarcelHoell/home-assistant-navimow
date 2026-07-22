@@ -30,6 +30,7 @@ Everything lives in `custom_components/navimow/`:
 - **Raw vehicle states are Segway's, with typos** (`isIdel`). Mapped in `RAW_STATE_TO_CANONICAL` in `lawn_mower.py`; `sensor.py` has its own `_ERROR_RAW_STATES` set. Adding a state means touching both.
 - **The coordinator owns the MQTT client's lifetime.** `async_shutdown()` stops it on unload; without that a reload leaves an orphan client reconnecting forever into dead data.
 - **A dead refresh token raises `ConfigEntryAuthFailed`**, which opens the reauth flow. Never tell the user to remove and re-add the integration.
+- **The API never reports a powered-off mower.** No `online` flag, no timestamp, and a switched-off mower keeps being served as `isDocked` (measured: 127 identical polls over an hour). MQTT is silent while docked. `binary_sensor` therefore reports cloud reachability via `last_update_success`, not mower state — do not "fix" it back into a mower-online sensor.
 - **Offline is not docked.** `is_online()` in `const.py` is the single reachability check; the mower entity reports `unavailable` and an unmapped `vehicleState` yields `None`, never a fake `DOCKED`.
 - Battery lives at `capacityRemaining[0].rawValue`; position at `position.lat` / `position.lng`.
 - Comments and some log strings are mixed Italian/English. Write new ones in English.

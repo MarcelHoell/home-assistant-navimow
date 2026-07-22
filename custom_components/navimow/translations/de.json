@@ -38,8 +38,8 @@
       }
     },
     "binary_sensor": {
-      "connectivity": {
-        "name": "Verbindung"
+      "cloud_connection": {
+        "name": "Cloud-Verbindung"
       }
     },
     "device_tracker": {

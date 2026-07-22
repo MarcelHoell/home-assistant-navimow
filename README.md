@@ -78,7 +78,7 @@ reports, e.g. a *Navimow H3000* becomes `navimow_h3000`.
 | `lawn_mower.{slug}` | Activity + commands. States: `mowing`, `paused`, `docked`, `returning`, `error`. Becomes `unavailable` when the mower is offline. |
 | `sensor.{slug}_battery` | Battery charge in %, device class `battery` |
 | `sensor.{slug}_error` | Current error code, `none` when healthy |
-| `binary_sensor.{slug}_connectivity` | `on` = mower reachable |
+| `binary_sensor.{slug}_connectivity` | *Cloud connection* — `on` = the Segway API answered the last poll. **Not** whether the mower is switched on, see below |
 | `device_tracker.{slug}_position` | GPS position, source type `gps` |
 
 Not sure about your exact ids? **Developer Tools → Template**:
@@ -121,9 +121,16 @@ expiry and reactively on a `TOKEN_EXPIRED` response.
 **Integration not listed after install** — restart Home Assistant, then clear
 the browser cache.
 
-**All entities `unavailable`** — the mower is powered off or unreachable. This
-is expected: an offline mower is reported as unavailable rather than pretending
-to be docked.
+**All entities `unavailable`** — the API stopped answering, or the device
+dropped out of the payload. The *Cloud connection* sensor stays available and
+tells you which.
+
+**The mower shows as docked although it is switched off** — the API cannot tell
+you otherwise. `getVehicleStatus` keeps serving the last known state, verified
+over an hour of polling a powered-off mower. There is no `online` flag and no
+timestamp in the payload, and MQTT sends nothing while the mower sits in its
+dock. The *Cloud connection* sensor therefore reports the API's reachability,
+not the mower's.
 
 **Commands do nothing** — test with Developer Tools → Actions →
 `lawn_mower.dock`. If that fails too, it is the API, not the dashboard.
