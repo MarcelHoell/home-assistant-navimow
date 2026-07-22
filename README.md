@@ -39,6 +39,13 @@ built on the official Segway OpenAPI.
 - Home Assistant 2024.1 or later
 - Internet access from your Home Assistant instance
 
+## 🔄 Updating
+
+HACS never installs on its own, it only notifies. To pull an update right away:
+**HACS → ⋮ → Reload all repositories**, then open Navimow and click *Update*.
+**Restart Home Assistant afterwards** — reloading is not enough for custom
+components.
+
 ## ⚙️ Installation
 
 ### HACS (recommended)
@@ -127,16 +134,22 @@ history are kept. Removing the integration is not necessary.
 
 ### Debug logging
 
+**Settings → Devices & Services → Navimow → Enable debug logging.** Reproduce
+the problem, then disable it again — Home Assistant hands you the captured log
+as a file.
+
+This records the raw `authList` / `getVehicleStatus` responses and every MQTT
+payload. **The file is not redacted**: search it for `access_token` and remove
+those lines before sharing.
+
+Permanent alternative, if you would rather have it in `configuration.yaml`:
+
 ```yaml
-# configuration.yaml
 logger:
   default: warning
   logs:
     custom_components.navimow: debug
 ```
-
-This logs the raw `authList` / `getVehicleStatus` responses and every MQTT
-payload — attach those (redact tokens and serial numbers) when reporting a bug.
 
 Quicker: **Settings → Devices & Services → Navimow → ⋮ → Download diagnostics**
 gives the same picture with tokens and credentials already redacted.
