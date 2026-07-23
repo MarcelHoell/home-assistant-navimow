@@ -99,6 +99,7 @@ Ready-to-paste Lovelace cards live in [`examples/`](examples/):
 
 - [`dashboard-card.yaml`](examples/dashboard-card.yaml) — generic, replace the slug
 - [`dashboard-card-h3000.yaml`](examples/dashboard-card-h3000.yaml) — concrete example
+- [`dashboard-card-h3000-mushroom.yaml`](examples/dashboard-card-h3000-mushroom.yaml) — same, styled with [Mushroom](https://github.com/piitaya/lovelace-mushroom) (HACS frontend required)
 
 Both use core cards only — no extra frontend dependencies. Copy the file
 contents into **Add card → Manual**.

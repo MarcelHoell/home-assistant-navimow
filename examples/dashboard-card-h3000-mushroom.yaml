@@ -1,0 +1,110 @@
+# Navimow H3000 — Mushroom version. Prettier than the core-card example, but
+# needs the Mushroom frontend from HACS (search "Mushroom", Frontend category).
+# Without it every card shows "Custom element doesn't exist: mushroom-...".
+#
+# Real entity ids for a device named "Navimow H3000". Paste into
+# "Add card" -> "Manual".
+
+type: vertical-stack
+cards:
+  - type: custom:mushroom-title-card
+    title: Navimow H3000
+
+  # Main mower tile: icon and text follow the activity, greys out when off
+  - type: custom:mushroom-template-card
+    entity: lawn_mower.navimow_h3000
+    icon: mdi:robot-mower
+    primary: Navimow H3000
+    secondary: |-
+      {% set s = states('lawn_mower.navimow_h3000') %}
+      {% set map = {
+        'mowing': 'Mowing',
+        'paused': 'Paused',
+        'docked': 'Docked',
+        'returning': 'Returning to dock',
+        'error': 'Error',
+        'unavailable': 'Switched off'
+      } %}
+      {{ map.get(s, s) }}
+    icon_color: |-
+      {% set s = states('lawn_mower.navimow_h3000') %}
+      {{ {
+        'mowing': 'green',
+        'paused': 'orange',
+        'docked': 'blue',
+        'returning': 'teal',
+        'error': 'red'
+      }.get(s, 'disabled') }}
+    tap_action:
+      action: more-info
+
+  # Command buttons — always all three, independent of activity
+  - type: custom:mushroom-chips-card
+    alignment: center
+    chips:
+      - type: template
+        icon: mdi:play
+        content: Mow
+        icon_color: green
+        tap_action:
+          action: perform-action
+          perform_action: lawn_mower.start_mowing
+          target:
+            entity_id: lawn_mower.navimow_h3000
+      - type: template
+        icon: mdi:pause
+        content: Pause
+        icon_color: orange
+        tap_action:
+          action: perform-action
+          perform_action: lawn_mower.pause
+          target:
+            entity_id: lawn_mower.navimow_h3000
+      - type: template
+        icon: mdi:home-import-outline
+        content: Dock
+        icon_color: blue
+        tap_action:
+          action: perform-action
+          perform_action: lawn_mower.dock
+          target:
+            entity_id: lawn_mower.navimow_h3000
+
+  # Status chips: battery (with Segway's own wording), cloud link, error
+  - type: custom:mushroom-chips-card
+    alignment: center
+    chips:
+      - type: entity
+        entity: sensor.navimow_h3000_battery
+        icon: mdi:battery
+        content_info: state
+      - type: template
+        entity: binary_sensor.navimow_h3000_connectivity
+        icon: >-
+          {{ 'mdi:cloud-check' if is_state('binary_sensor.navimow_h3000_connectivity','on')
+             else 'mdi:cloud-off-outline' }}
+        icon_color: >-
+          {{ 'green' if is_state('binary_sensor.navimow_h3000_connectivity','on') else 'red' }}
+        content: >-
+          {{ 'Cloud' if is_state('binary_sensor.navimow_h3000_connectivity','on') else 'Offline' }}
+        tap_action:
+          action: more-info
+      # Only appears when there is an actual error
+      - type: conditional
+        conditions:
+          - condition: state
+            entity: sensor.navimow_h3000_error
+            state_not: none
+        chip:
+          type: template
+          icon: mdi:alert-circle
+          icon_color: red
+          content: "{{ states('sensor.navimow_h3000_error') }}"
+          tap_action:
+            action: more-info
+
+  - type: history-graph
+    hours_to_show: 24
+    entities:
+      - entity: sensor.navimow_h3000_battery
+      - entity: lawn_mower.navimow_h3000
