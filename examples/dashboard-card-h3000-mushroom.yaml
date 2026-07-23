@@ -1,6 +1,8 @@
 # Navimow H3000 — Mushroom version. Prettier than the core-card example, but
-# needs the Mushroom frontend from HACS (search "Mushroom", Frontend category).
-# Without it every card shows "Custom element doesn't exist: mushroom-...".
+# needs two HACS frontend cards (Frontend category):
+#   - "Mushroom"        for the mushroom-* cards
+#   - "mini-graph-card" for the fixed 0-100% battery graph
+# Without them the affected cards show "Custom element doesn't exist: ...".
 #
 # Real entity ids for a device named "Navimow H3000". Paste into
 # "Add card" -> "Manual".
@@ -110,8 +112,19 @@ cards:
           tap_action:
             action: more-info
 
+  # Battery on a fixed 0-100% scale (history-graph can't pin its axis)
+  - type: custom:mini-graph-card
+    name: Battery
+    hours_to_show: 24
+    points_per_hour: 2
+    lower_bound: 0
+    upper_bound: 100
+    line_color: var(--green-color)
+    entities:
+      - entity: sensor.navimow_h3000_battery
+
+  # Activity is categorical, so it stays a state timeline of its own
   - type: history-graph
     hours_to_show: 24
     entities:
-      - entity: sensor.navimow_h3000_battery
       - entity: lawn_mower.navimow_h3000
