@@ -38,31 +38,38 @@ cards:
     tap_action:
       action: more-info
 
-  # Command buttons — always all three, independent of activity
-  - type: custom:mushroom-chips-card
-    alignment: center
-    chips:
-      - type: template
+  # Command buttons — always all three, independent of activity.
+  # horizontal-stack splits the width equally, so the three buttons are the
+  # same size and span the full card width, flush with the title and graph.
+  - type: horizontal-stack
+    cards:
+      - type: custom:mushroom-template-card
         icon: mdi:play
-        content: Mow
+        primary: Mow
+        layout: vertical
+        fill_container: true
         icon_color: green
         tap_action:
           action: perform-action
           perform_action: lawn_mower.start_mowing
           target:
             entity_id: lawn_mower.navimow_h3000
-      - type: template
+      - type: custom:mushroom-template-card
         icon: mdi:pause
-        content: Pause
+        primary: Pause
+        layout: vertical
+        fill_container: true
         icon_color: orange
         tap_action:
           action: perform-action
           perform_action: lawn_mower.pause
           target:
             entity_id: lawn_mower.navimow_h3000
-      - type: template
+      - type: custom:mushroom-template-card
         icon: mdi:home-import-outline
-        content: Dock
+        primary: Dock
+        layout: vertical
+        fill_container: true
         icon_color: blue
         tap_action:
           action: perform-action
